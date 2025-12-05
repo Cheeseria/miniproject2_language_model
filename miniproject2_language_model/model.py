@@ -41,3 +41,22 @@ class CausalSelfAttention(nn.Module):
 
         y = self.c_proj(y)
         return y
+    
+class Block(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.LayerNorm_1 = nn.LayerNorm(config.embed_dim)
+        self.CausalSelfAttn = CausalSelfAttention(config)
+        self.LayerNorm_2 = nn.LayerNorm(config.embed_dim)
+
+        self.MLP = nn.Sequential(
+            nn.Linear(config.embed_dim, 4 * config.embed_dim),
+            nn.GELU()
+            nn.Linear(4 * config.embed_dim, config.embed_dim),
+            nn.Dropout(config.dropout),
+        )
+
+    def forward(self, x):
+        x = x + self.CausalSelfAttn(self.LayerNorm_1(x))
+        x = x + self.MLP(self.LayerNorm_2(x))
+        return x
