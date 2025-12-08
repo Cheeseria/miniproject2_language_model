@@ -50,8 +50,8 @@ class Block(nn.Module):
         self.LayerNorm_2 = nn.LayerNorm(config.embed_dim)
 
         self.MLP = nn.Sequential(
-            nn.Linear(config.embed_dim, 4 * config.embed_dim),
-            nn.GELU()
+            nn.Linear(config.embed_dim, 4 * config.embed_dim), 
+            nn.GELU(), 
             nn.Linear(4 * config.embed_dim, config.embed_dim),
             nn.Dropout(config.dropout),
         )
@@ -60,3 +60,70 @@ class Block(nn.Module):
         x = x + self.CausalSelfAttn(self.LayerNorm_1(x))
         x = x + self.MLP(self.LayerNorm_2(x))
         return x
+    
+class GPT(nn.Module):
+    def __init__(self,config):
+        super().__init__()
+        self.config = config
+
+        self.WTE = nn.EMbedding(config.vocab_size, config.embed_dim)
+        self.WPE = nn.Parameter(torch.zeros(1, config.block_size, config.embed_dim))
+        self.Drop = nn.Dropout(config.dropout)
+
+        self.Blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layers)])
+
+        self.Final_LayerNorm = nn.LayerNorm(config.embed_dim)
+        self.LM_Head = nn.Linear(config.embed_dim, config.vocab_size, bias = False)
+
+        self.LM_Head.weight = self.WTE.weight
+
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.2)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def forward(self, idx, targets=None):
+        B, T = idx.shape
+        assert T <= self.config.block_size
+
+        tok_emb = self.WTE(idx)
+        pos_emb = self.WPE[:, :T, :]
+        x = self.Drop(tok_emb + pos_emb)
+
+        for Block in self.Blocks:
+            x = Block(x)
+
+        x = self.Final_LayerNorm(x)
+        logits = self.LM_Head(x)
+
+        if targets is None:
+            loss = None
+        else:
+            B, T, V = logits.shape
+            loss = F.cross_entropy(logits.view(B*T, V), targets.view(B*T))
+
+        return logits, loss
+
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k = None):
+        self.eval()
+        for _ in range(max_new_tokens):
+            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
+
+            logits, _ = self(idx_cond)
+            logits = logits[:, -1, :] / temperature
+
+            if top_k is not None:
+                v, _ = torch.topk(logits, top_k)
+                logits[logits < v[:, [-1]]] = -float('inf')
+
+            probs = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat((idx, idx_next), dim=1)
+
+        return idx
