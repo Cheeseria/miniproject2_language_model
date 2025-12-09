@@ -11,8 +11,8 @@ if __name__ == '__main__':
 
     # Config
     config = Config()
-    config.batch_size = 32        # smaller = faster on CPU
-    config.max_iters = 3000       # enough for good results
+    config.batch_size = 32
+    config.max_iters = 10000 # 1k is enough for actual works but we want cinema, we want a masterpiece
     config.eval_interval = 500
 
     # Data
