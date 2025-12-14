@@ -16,7 +16,7 @@ if __name__ == '__main__':
     config.eval_interval = 500
 
     # Data
-    print("Loading TinyShakespeare...")
+    print("Loading Shakespeare...")
     text = requests.get("https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt").text
 
     dataset = CharDataset(config, text)

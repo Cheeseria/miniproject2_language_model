@@ -3,7 +3,7 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     block_size: int = 128
-    vocab_size: int = None        # will be filled after dataset
+    vocab_size: int = None        # will be filled after dataset is processed
     embed_dim: int = 768
     n_layers: int = 12
     n_heads: int = 12
