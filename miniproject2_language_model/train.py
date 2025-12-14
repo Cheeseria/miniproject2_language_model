@@ -71,4 +71,4 @@ if __name__ == '__main__':
                 print("\n" + "—" * 80)
             model.train()
 
-    print("Training finished! Your Shakespeare model is ready.")
+    print("Training finished!")
